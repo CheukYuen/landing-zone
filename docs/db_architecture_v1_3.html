@@ -474,12 +474,12 @@
 <!-- ══════════════ HEADER ══════════════ -->
 <div class="header">
   <h1>// 智能投顾 3.0 — MySQL 数据库架构 <span class="version-badge">v1.3</span></h1>
-  <p class="subtitle">数据采购清单 v1.33 · 全天候策略数据对齐 · 月频定时更新 · LLM/Markdown 输出</p>
+  <p class="subtitle">数据采购清单 v1.3.7 · 4.3 benchmarks 重复采购修复 · 月频定时更新 · LLM/Markdown 输出</p>
 </div>
 
 <!-- ══════════════ CHANGELOG BANNER ══════════════ -->
 <div class="changelog-banner">
-  <h3>// v1.3 变更摘要（vs v1.2）</h3>
+  <h3>// v1.3 变更摘要（vs v1.2）· 采购清单已对齐至 v1.3.7</h3>
   <div class="changelog-items">
     <div class="cl-item"><strong>+macro_daily</strong> 新表：DR007/30Y/T5YIE 等日频原始保留</div>
     <div class="cl-item"><strong>+derived_daily</strong> 新表：期限利差等内部合成特征</div>
@@ -489,6 +489,8 @@
     <div class="cl-item">宽表 <strong>~25→~35</strong> 列：补齐10个字段</div>
     <div class="cl-item">catalog ENUM：+internal_derived, +qoq_sa, +spread</div>
     <div class="cl-item">新增设计原则⑥：日频原始保留策略</div>
+    <div class="cl-item"><strong>v1.3.7 对齐</strong> 4.3 benchmarks 修复重复采购：CBOND/511520/FDR007/807400 为独立月度采购；510300等月度序列为内部聚合</div>
+    <div class="cl-item"><strong>D-01 拆分</strong> D-01a benchmark_monthly（4.3 月度基准）/ D-01b benchmark_daily（4.4 多资产指数）</div>
   </div>
 </div>
 
