@@ -1,0 +1,28 @@
+[project]
+name = "landing-zone"
+version = "0.1.0"
+description = "智能投顾 3.0 — 数据落库管道 (MySQL DDL + Python ETL)"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "sqlalchemy>=2.0",
+    "pymysql>=1.1",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

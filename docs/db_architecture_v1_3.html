@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能投顾 DB 架构图 v1.3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg:       #0d1117;
+    --bg2:      #161b22;
+    --bg3:      #1c2333;
+    --line:     #30363d;
+    --lr:       #e3b341;
+    --l0:       #58a6ff;
+    --l1a:      #3fb950;
+    --l1a2:     #56d364;   /* macro_daily 亮绿 */
+    --l1b:      #f0883e;
+    --l1c:      #d2a8ff;
+    --l1d:      #ffa657;
+    --l1e:      #ff7b72;
+    --l1f:      #79c0ff;   /* derived 天蓝 */
+    --l2a:      #58a6ff;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --accent:   #58a6ff;
+    --new:      #f78166;   /* v1.3 NEW badge */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px 60px;
+  }
+
+  /* ── HEADER ── */
+  .header { max-width: 1080px; margin: 0 auto 28px; }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .version-badge {
+    font-size: 10px;
+    background: linear-gradient(135deg, var(--new), #da3633);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 0; }
+
+  /* ── CHANGELOG BANNER ── */
+  .changelog-banner {
+    max-width: 1080px;
+    margin: 0 auto 28px;
+    background: linear-gradient(135deg, rgba(247,129,102,0.08), rgba(88,166,255,0.06));
+    border: 1px solid rgba(247,129,102,0.25);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .changelog-banner h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--new);
+    margin-bottom: 10px;
+    letter-spacing: 0.06em;
+  }
+  .changelog-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 24px;
+  }
+  .cl-item {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .cl-item::before {
+    content: '△';
+    color: var(--new);
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+  .cl-item strong { color: var(--text); font-weight: 500; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    margin-bottom: 32px;
+    max-width: 1080px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+  .legend-new {
+    font-size: 9px;
+    color: var(--new);
+    font-weight: 700;
+    margin-left: -2px;
+  }
+
+  /* ── LAYERS ── */
+  .diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .layer-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+  }
+
+  .layer-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    padding: 16px 8px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  .layer-content {
+    flex: 1;
+    padding: 20px 16px 20px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .layer-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    letter-spacing: 0.08em;
+  }
+
+  .tables-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  /* ── TABLE CARD ── */
+  .tcard {
+    border-radius: 8px;
+    border: 1px solid;
+    background: var(--bg2);
+    min-width: 152px;
+    max-width: 220px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .tcard:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+
+  .tcard.is-new { box-shadow: 0 0 0 1px var(--new), 0 0 12px rgba(247,129,102,0.12); }
+  .tcard.is-new::after {
+    content: 'NEW';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--new);
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+  }
+
+  .tcard-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid;
+  }
+  .tcard-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .tcard-cn {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .tcard-body {
+    padding: 8px 12px 10px;
+  }
+  .tcard-field {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.7;
+    white-space: nowrap;
+  }
+  .tcard-field .pk { color: #ffa657; }
+  .tcard-field .fk { color: #d2a8ff; }
+  .tcard-field .idx { color: #3fb950; }
+  .tcard-field .new-field { color: var(--new); }
+  .tcard-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .badge-wide { background: rgba(88,166,255,0.15); color: var(--l0); }
+  .badge-narrow { background: rgba(63,185,80,0.15); color: var(--l1a); }
+  .badge-count-change {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(247,129,102,0.15);
+    color: var(--new);
+    margin-left: 3px;
+    font-weight: 600;
+  }
+
+  /* ── ARROWS SECTION ── */
+  .arrows-section {
+    max-width: 1080px;
+    margin: 32px auto 0;
+  }
+  .arrows-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    letter-spacing: 0.08em;
+  }
+  .flow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .flow-item.is-new-flow {
+    background: rgba(247,129,102,0.04);
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: -4px -8px;
+  }
+  .flow-from, .flow-to {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .flow-arrow {
+    color: var(--muted);
+    font-size: 14px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .flow-desc {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .flow-new-tag {
+    font-size: 8px;
+    color: var(--new);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  /* ── EXPLAINER PANELS ── */
+  .explainer-grid {
+    max-width: 1080px;
+    margin: 40px auto 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .explainer {
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .explainer-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .explainer p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin-bottom: 10px;
+  }
+  .mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .mini-table th {
+    background: var(--bg3);
+    color: var(--accent);
+    padding: 5px 8px;
+    text-align: left;
+    border: 1px solid var(--line);
+  }
+  .mini-table td {
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+  .mini-table tr:nth-child(even) td { background: var(--bg3); }
+  .highlight-row td { color: #ffa657; }
+  .highlight-new td { color: var(--new); }
+
+  /* ── UPDATE FLOW ── */
+  .update-flow {
+    max-width: 1080px;
+    margin: 32px auto 0;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .update-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    font-weight: 700;
+  }
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 110px;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-text {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .step-text .new-text { color: var(--new); font-weight: 500; }
+  .step-arrow {
+    font-size: 18px;
+    color: var(--line);
+    padding: 0 4px;
+    margin-bottom: 20px;
+  }
+
+  /* color assignments */
+  .c-lr    { border-color: var(--lr); }
+  .c-lr .tcard-header { border-color: var(--lr); background: rgba(227,179,65,0.08); }
+  .c-lr .tcard-name   { color: var(--lr); }
+
+  .c-l0    { border-color: var(--l0);  }
+  .c-l0 .tcard-header { border-color: var(--l0); background: rgba(88,166,255,0.08); }
+  .c-l0 .tcard-name   { color: var(--l0); }
+
+  .c-l1a   { border-color: var(--l1a); }
+  .c-l1a .tcard-header { border-color: var(--l1a); background: rgba(63,185,80,0.08); }
+  .c-l1a .tcard-name   { color: var(--l1a); }
+
+  .c-l1a2  { border-color: var(--l1a2); }
+  .c-l1a2 .tcard-header { border-color: var(--l1a2); background: rgba(86,211,100,0.08); }
+  .c-l1a2 .tcard-name   { color: var(--l1a2); }
+
+  .c-l1b   { border-color: var(--l1b); }
+  .c-l1b .tcard-header { border-color: var(--l1b); background: rgba(240,136,62,0.08); }
+  .c-l1b .tcard-name   { color: var(--l1b); }
+
+  .c-l1c   { border-color: var(--l1c); }
+  .c-l1c .tcard-header { border-color: var(--l1c); background: rgba(210,168,255,0.08); }
+  .c-l1c .tcard-name   { color: var(--l1c); }
+
+  .c-l1d   { border-color: var(--l1d); }
+  .c-l1d .tcard-header { border-color: var(--l1d); background: rgba(255,166,87,0.08); }
+  .c-l1d .tcard-name   { color: var(--l1d); }
+
+  .c-l1e   { border-color: var(--l1e); }
+  .c-l1e .tcard-header { border-color: var(--l1e); background: rgba(255,123,114,0.08); }
+  .c-l1e .tcard-name   { color: var(--l1e); }
+
+  .c-l1f   { border-color: var(--l1f); }
+  .c-l1f .tcard-header { border-color: var(--l1f); background: rgba(121,192,255,0.08); }
+  .c-l1f .tcard-name   { color: var(--l1f); }
+
+  .c-l2a   { border-color: var(--l2a); }
+  .c-l2a .tcard-header { border-color: var(--l2a); background: rgba(88,166,255,0.12); }
+  .c-l2a .tcard-name   { color: var(--l2a); }
+
+  .step-s0 { background: rgba(227,179,65,0.2); color: var(--lr); border: 1px solid var(--lr); }
+  .step-s1 { background: rgba(88,166,255,0.2); color: var(--l0); border: 1px solid var(--l0); }
+  .step-s2 { background: rgba(63,185,80,0.2); color: var(--l1a); border: 1px solid var(--l1a); }
+  .step-s3 { background: rgba(210,168,255,0.2); color: var(--l1c); border: 1px solid var(--l1c); }
+  .step-s4 { background: rgba(255,166,87,0.2); color: var(--l1d); border: 1px solid var(--l1d); }
+  .step-s5 { background: rgba(255,123,114,0.2); color: var(--l1e); border: 1px solid var(--l1e); }
+  .step-s6 { background: rgba(121,192,255,0.2); color: var(--l1f); border: 1px solid var(--l1f); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<div class="header">
+  <h1>// 智能投顾 3.0 — MySQL 数据库架构 <span class="version-badge">v1.3</span></h1>
+  <p class="subtitle">数据采购清单 v1.33 · 全天候策略数据对齐 · 月频定时更新 · LLM/Markdown 输出</p>
+</div>
+
+<!-- ══════════════ CHANGELOG BANNER ══════════════ -->
+<div class="changelog-banner">
+  <h3>// v1.3 变更摘要（vs v1.2）</h3>
+  <div class="changelog-items">
+    <div class="cl-item"><strong>+macro_daily</strong> 新表：DR007/30Y/T5YIE 等日频原始保留</div>
+    <div class="cl-item"><strong>+derived_daily</strong> 新表：期限利差等内部合成特征</div>
+    <div class="cl-item">宏观核心 <strong>14→16</strong>：+YIELD_30Y, T5YIE, AA-AAA利差, 财政支出</div>
+    <div class="cl-item">行情 <strong>15→16</strong> ticker：+铁矿石, 南向资金</div>
+    <div class="cl-item">量化建模 <strong>5→6</strong> 原始指标：+CN_BOND_30Y</div>
+    <div class="cl-item">宽表 <strong>~25→~35</strong> 列：补齐10个字段</div>
+    <div class="cl-item">catalog ENUM：+internal_derived, +qoq_sa, +spread</div>
+    <div class="cl-item">新增设计原则⑥：日频原始保留策略</div>
+  </div>
+</div>
+
+<!-- ══════════════ LEGEND ══════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l0)"></div> Layer 0 元数据</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1a)"></div> Layer 1 宏观月频</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1a2)"></div> Layer 1 宏观日频 <span class="legend-new">NEW</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1b)"></div> Layer 1 行情日频</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1c)"></div> Layer 1 量化日频</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1d)"></div> Layer 1 事件驱动</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1e)"></div> Layer 1 新闻文本</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l1f)"></div> Layer 1 内部合成 <span class="legend-new">NEW</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--l2a)"></div> Layer 2 快照宽表</div>
+</div>
+
+<!-- ══════════════ DIAGRAM ══════════════ -->
+<div class="diagram">
+
+  <!-- FILE SYSTEM -->
+  <div style="max-width:1080px;margin:0 auto 0 32px;padding:16px 20px;background:var(--bg2);border:1px dashed var(--lr);border-radius:8px;margin-bottom:0">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--lr);margin-bottom:8px;letter-spacing:0.08em">// 文件系统归档（不入数据库）</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:2">
+      <span style="color:var(--lr)">/data/raw/nbs/</span>统计局-3_<span style="color:var(--text)">20260211</span>.xlsx &nbsp;&nbsp;← 原样保留，文件名含更新日期<br>
+      <span style="color:var(--lr)">/data/raw/wind/</span>market_data_<span style="color:var(--text)">20260216</span>.csv<br>
+      <span style="color:var(--lr)">/data/raw/chinabond/</span>yield_30y_<span style="color:var(--text)">20260216</span>.csv &nbsp;&nbsp;<span style="color:var(--new);font-size:9px;font-weight:700">NEW</span><br>
+      <span style="color:var(--lr)">/data/raw/fred/</span>t5yie_<span style="color:var(--text)">20260216</span>.csv &nbsp;&nbsp;<span style="color:var(--new);font-size:9px;font-weight:700">NEW 免费</span><br>
+      <span style="color:var(--lr)">/data/raw/policy/</span>epu_cn_<span style="color:var(--text)">20260201</span>.csv
+    </div>
+  </div>
+
+  <!-- ARROW FS→DB -->
+  <div style="max-width:1080px;margin:0 auto;padding:4px 52px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">
+    ↓ &nbsp; ETL 脚本读取，清洗后写入数据库
+  </div>
+
+  <!-- LAYER 0 -->
+  <div class="layer-row">
+    <div class="layer-label" style="color:var(--l0)">LAYER 0</div>
+    <div class="layer-content">
+      <div class="layer-title">// 元数据层 — 数据字典（含内部合成特征登记）</div>
+      <div class="tables-row">
+        <div class="tcard c-l0">
+          <div class="tcard-header">
+            <div class="tcard-name">indicator_catalog</div>
+            <div class="tcard-cn">指标目录 <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> indicator_code</div>
+            <div class="tcard-field">indicator_name</div>
+            <div class="tcard-field">category <span class="new-field">+internal_derived</span></div>
+            <div class="tcard-field">frequency</div>
+            <div class="tcard-field">value_type <span class="new-field">+qoq_sa +spread</span></div>
+            <div class="tcard-field">target_table</div>
+            <div class="tcard-field">notes (TEXT)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAYER 1 -->
+  <div class="layer-row">
+    <div class="layer-label" style="color:var(--l1a)">LAYER 1</div>
+    <div class="layer-content">
+      <div class="layer-title">// 原始数据层 — 按频率+类型分表（v1.3: 5→7张表）</div>
+      <div class="tables-row">
+
+        <!-- macro_monthly -->
+        <div class="tcard c-l1a">
+          <div class="tcard-header">
+            <div class="tcard-name">macro_monthly</div>
+            <div class="tcard-cn">宏观月频 <span class="badge-count-change">28→30</span> <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field"><span class="fk">FK</span> indicator_code</div>
+            <div class="tcard-field"><span class="idx">UK</span> stat_month</div>
+            <div class="tcard-field">value DECIMAL</div>
+            <div class="tcard-field">is_preliminary</div>
+            <div class="tcard-field">data_version</div>
+            <div class="tcard-field">source_tag <span class="new-field">AGG_FROM_DAILY</span></div>
+          </div>
+        </div>
+
+        <!-- macro_daily NEW -->
+        <div class="tcard c-l1a2 is-new">
+          <div class="tcard-header">
+            <div class="tcard-name">macro_daily</div>
+            <div class="tcard-cn">宏观日频 7指标 <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field"><span class="fk">FK</span> indicator_code</div>
+            <div class="tcard-field"><span class="idx">UK</span> trade_date</div>
+            <div class="tcard-field">value DECIMAL</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px;margin-top:4px">DR007 · YIELD_10Y · YIELD_30Y</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px">T5YIE · SPREAD_AA · SPREAD_AA_AAA</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px">FX_CNY_MID</div>
+          </div>
+        </div>
+
+        <!-- market_daily -->
+        <div class="tcard c-l1b">
+          <div class="tcard-header">
+            <div class="tcard-name">market_daily</div>
+            <div class="tcard-cn">行情日频 <span class="badge-count-change">15→16</span> <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field">ticker</div>
+            <div class="tcard-field"><span class="idx">UK</span> trade_date</div>
+            <div class="tcard-field">close_price</div>
+            <div class="tcard-field">volume</div>
+            <div class="tcard-field">net_flow</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px;margin-top:4px">+IRON_ORE_DCE +SOUTHBOUND</div>
+          </div>
+        </div>
+
+        <!-- quant_daily -->
+        <div class="tcard c-l1c">
+          <div class="tcard-header">
+            <div class="tcard-name">quant_daily</div>
+            <div class="tcard-cn">量化建模 <span class="badge-count-change">5→6</span> <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field">ticker</div>
+            <div class="tcard-field"><span class="idx">UK</span> trade_date</div>
+            <div class="tcard-field">close_price</div>
+            <div class="tcard-field">yield_rate</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px;margin-top:4px">+CN_BOND_30Y(长债腿)</div>
+          </div>
+        </div>
+
+        <!-- central_bank_events -->
+        <div class="tcard c-l1d">
+          <div class="tcard-header">
+            <div class="tcard-name">central_bank_events</div>
+            <div class="tcard-cn">央行事件日历 <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field">event_date</div>
+            <div class="tcard-field">institution</div>
+            <div class="tcard-field">event_type</div>
+            <div class="tcard-field">change_bp</div>
+            <div class="tcard-field">raw_text (TEXT)</div>
+          </div>
+        </div>
+
+        <!-- news_raw -->
+        <div class="tcard c-l1e">
+          <div class="tcard-header">
+            <div class="tcard-name">news_raw</div>
+            <div class="tcard-cn">原始新闻文本 <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field">pub_time</div>
+            <div class="tcard-field">source</div>
+            <div class="tcard-field">title</div>
+            <div class="tcard-field">body (MEDIUMTEXT)</div>
+            <div class="tcard-field">sentiment_score</div>
+          </div>
+        </div>
+
+        <!-- derived_daily NEW -->
+        <div class="tcard c-l1f is-new">
+          <div class="tcard-header">
+            <div class="tcard-name">derived_daily</div>
+            <div class="tcard-cn">内部合成特征 <span class="tcard-badge badge-narrow">窄</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> id</div>
+            <div class="tcard-field"><span class="fk">FK</span> indicator_code</div>
+            <div class="tcard-field"><span class="idx">UK</span> trade_date</div>
+            <div class="tcard-field">value DECIMAL</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px;margin-top:4px">TERM_SPREAD_10Y_1Y</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px">TERM_SPREAD_30Y_10Y</div>
+            <div class="tcard-field" style="color:var(--new);font-size:9px">DR007_FUNDING_COST</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- LAYER 2 -->
+  <div class="layer-row" style="border-bottom:none">
+    <div class="layer-label" style="color:var(--l2a)">LAYER 2</div>
+    <div class="layer-content" style="border-bottom:none">
+      <div class="layer-title">// 聚合快照层 — LLM / Markdown 直接消费</div>
+      <div class="tables-row">
+
+        <div class="tcard c-l2a" style="max-width:340px">
+          <div class="tcard-header">
+            <div class="tcard-name">macro_snapshot_monthly</div>
+            <div class="tcard-cn">月度宏观宽表快照 <span class="badge-count-change">~25→~35列</span> <span class="tcard-badge badge-wide">宽</span></div>
+          </div>
+          <div class="tcard-body">
+            <div class="tcard-field"><span class="pk">PK</span> snap_month CHAR(7)</div>
+            <div class="tcard-field">cpi_yoy, ppi_yoy, m2_yoy</div>
+            <div class="tcard-field">tsf_stock_yoy, lpr_1y</div>
+            <div class="tcard-field">yield_10y, dr007</div>
+            <div class="tcard-field"><span class="new-field">yield_30y_avg, t5yie_avg</span></div>
+            <div class="tcard-field"><span class="new-field">credit_spread_aa_aaa</span></div>
+            <div class="tcard-field"><span class="new-field">gov_expend_cum_yoy</span></div>
+            <div class="tcard-field">pmi_manu, pmi_serv</div>
+            <div class="tcard-field">spx_eom, hs300_eom</div>
+            <div class="tcard-field">vix_avg, brent_avg</div>
+            <div class="tcard-field"><span class="new-field">southbound_net_sum</span></div>
+            <div class="tcard-field"><span class="new-field">iron_ore_dce_avg</span></div>
+            <div class="tcard-field">epu_cn, epu_us, <span class="new-field">epu_global</span></div>
+            <div class="tcard-field">gpr, <span class="new-field">gpr_threats, gpr_acts</span></div>
+            <div class="tcard-field"><span class="new-field">term_spread_10y_1y_eom</span></div>
+            <div class="tcard-field">pboc_rate_event (VARCHAR)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div><!-- /diagram -->
+
+<!-- ══════════════ FLOW ARROWS ══════════════ -->
+<div class="arrows-section">
+  <div class="arrows-title">// 表间关系 & 数据流向</div>
+  <div class="flow-list">
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--lr);color:var(--lr)">/data/raw/ 文件系统</div>
+      <div class="flow-arrow">──ETL清洗──▶</div>
+      <div class="flow-to" style="border-color:var(--l1a);color:var(--l1a)">macro_monthly</div>
+      <div class="flow-desc">跳过垃圾行，映射 indicator_code，空值保留 NULL；原始文件留在文件系统</div>
+    </div>
+
+    <div class="flow-item is-new-flow">
+      <div class="flow-from" style="border-color:var(--lr);color:var(--lr)">/data/raw/ 文件系统</div>
+      <div class="flow-arrow">──ETL清洗──▶</div>
+      <div class="flow-to" style="border-color:var(--l1a2);color:var(--l1a2)">macro_daily</div>
+      <div class="flow-desc">DR007/YIELD_30Y/T5YIE 等日频原始保留</div>
+      <div class="flow-new-tag">NEW</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l0);color:var(--l0)">indicator_catalog</div>
+      <div class="flow-arrow">──FK──▶</div>
+      <div class="flow-to" style="border-color:var(--l1a);color:var(--l1a)">macro_monthly / macro_daily / derived_daily</div>
+      <div class="flow-desc">indicator_code 外键约束，每行数据必须在目录中登记</div>
+    </div>
+
+    <div class="flow-item is-new-flow">
+      <div class="flow-from" style="border-color:var(--l1a2);color:var(--l1a2)">macro_daily</div>
+      <div class="flow-arrow">──月均聚合──▶</div>
+      <div class="flow-to" style="border-color:var(--l1a);color:var(--l1a)">macro_monthly</div>
+      <div class="flow-desc">日频→月均值，source_tag='AGG_FROM_DAILY'</div>
+      <div class="flow-new-tag">NEW</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l1a);color:var(--l1a)">macro_monthly</div>
+      <div class="flow-arrow">──聚合──▶</div>
+      <div class="flow-to" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-desc">每月 16 日存储过程：30 指标 → 透视为 1 行宽表</div>
+    </div>
+
+    <div class="flow-item is-new-flow">
+      <div class="flow-from" style="border-color:var(--l1a2);color:var(--l1a2)">macro_daily</div>
+      <div class="flow-arrow">──月均直聚──▶</div>
+      <div class="flow-to" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-desc">30Y/T5YIE 等日频直接聚合进宽表（月均值）</div>
+      <div class="flow-new-tag">NEW</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l1b);color:var(--l1b)">market_daily</div>
+      <div class="flow-arrow">──月均/月末──▶</div>
+      <div class="flow-to" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-desc">日频行情 → 月均值/月末值/月累计 → 合并写入快照宽表</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l1d);color:var(--l1d)">central_bank_events</div>
+      <div class="flow-arrow">──文本拼接──▶</div>
+      <div class="flow-to" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-desc">当月 PBOC/FOMC 事件摘要 → pboc_rate_event 字段</div>
+    </div>
+
+    <div class="flow-item is-new-flow">
+      <div class="flow-from" style="border-color:var(--l1f);color:var(--l1f)">derived_daily</div>
+      <div class="flow-arrow">──月末取值──▶</div>
+      <div class="flow-to" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-desc">期限利差月末值 → term_spread_10y_1y_eom</div>
+      <div class="flow-new-tag">NEW</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l1c);color:var(--l1c)">quant_daily</div>
+      <div class="flow-arrow">──Python pivot──▶</div>
+      <div class="flow-to" style="border-color:#e6edf3;color:#e6edf3">协方差矩阵</div>
+      <div class="flow-desc">窄表 → Python pivot → df.cov() × 252 年化</div>
+    </div>
+
+    <div class="flow-item">
+      <div class="flow-from" style="border-color:var(--l2a);color:var(--l2a)">macro_snapshot_monthly</div>
+      <div class="flow-arrow">──SELECT 1行──▶</div>
+      <div class="flow-to" style="border-color:#e6edf3;color:#e6edf3">LLM Prompt</div>
+      <div class="flow-desc">一次查询拿到当月全量数据（~35列），直接渲染 Markdown 月报</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ EXPLAINER ══════════════ -->
+<div class="explainer-grid">
+
+  <div class="explainer">
+    <div class="explainer-title" style="color:var(--lr)">📁 原始文件怎么归档？</div>
+    <p>直接存文件系统，<strong>不新建数据库表</strong>。文件命名含供应商更新日期，找问题时直接定位对应文件。</p>
+    <table class="mini-table">
+      <tr><th>目录</th><th>文件示例</th></tr>
+      <tr><td>/data/raw/nbs/</td><td>统计局-3_20260211.xlsx</td></tr>
+      <tr><td>/data/raw/wind/</td><td>market_data_20260216.csv</td></tr>
+      <tr class="highlight-new"><td>/data/raw/chinabond/</td><td>yield_30y_20260216.csv</td></tr>
+      <tr class="highlight-new"><td>/data/raw/fred/</td><td>t5yie_20260216.csv</td></tr>
+      <tr><td>/data/raw/policy/</td><td>epu_cn_20260201.csv</td></tr>
+    </table>
+    <p style="margin-top:10px;font-size:11px">加工规则变了？重跑 ETL 脚本读原始文件即可</p>
+  </div>
+
+  <div class="explainer">
+    <div class="explainer-title" style="color:var(--l1a2)">📡 为什么新增 macro_daily？<span style="color:var(--new);font-size:10px;margin-left:6px">v1.3</span></div>
+    <p>DR007、YIELD_30Y、T5YIE 等指标在采购清单 v1.33 中被明确要求<strong>"保留日频原始 + 输出月均"</strong>。日频原始存 macro_daily，月均聚合写 macro_monthly。</p>
+    <table class="mini-table">
+      <tr><th>macro_daily（日频原始）</th><th>macro_monthly（月均聚合）</th></tr>
+      <tr><td>DR007 2026-02-01 = 1.82%</td><td>DR007 2026-02 = 1.85%</td></tr>
+      <tr><td>DR007 2026-02-02 = 1.79%</td><td>（月均值，source_tag=</td></tr>
+      <tr><td>DR007 2026-02-03 = 1.91%</td><td>AGG_FROM_DAILY）</td></tr>
+    </table>
+    <p style="margin-top:10px;font-size:11px">↑ 审计/复算可溯源至日频粒度；杠杆成本按日频逐日计提</p>
+  </div>
+
+  <div class="explainer">
+    <div class="explainer-title" style="color:var(--l1f)">🧮 derived_daily 存什么？<span style="color:var(--new);font-size:10px;margin-left:6px">v1.3</span></div>
+    <p>由已采购原始序列<strong>内部计算</strong>的合成特征。非采购项，在 indicator_catalog 中登记（category='internal_derived'）。</p>
+    <table class="mini-table">
+      <tr><th>code</th><th>公式</th><th>用途</th></tr>
+      <tr><td>TERM_SPREAD_10Y_1Y</td><td>YIELD_10Y − CGB_1Y</td><td>周期位置识别</td></tr>
+      <tr><td>TERM_SPREAD_30Y_10Y</td><td>YIELD_30Y − YIELD_10Y</td><td>曲线形态监测</td></tr>
+      <tr><td>DR007_FUNDING_COST</td><td>DR007 日频计提</td><td>杠杆资金成本</td></tr>
+    </table>
+  </div>
+
+  <div class="explainer">
+    <div class="explainer-title" style="color:var(--l2a)">📊 宽表新增了哪些列？<span style="color:var(--new);font-size:10px;margin-left:6px">v1.3</span></div>
+    <p>macro_snapshot_monthly 从 ~25 列扩充至 ~35 列，<strong>新增 10 个字段</strong>：</p>
+    <table class="mini-table">
+      <tr><th>新增字段</th><th>来源</th><th>聚合</th></tr>
+      <tr><td>yield_30y_avg</td><td>macro_daily</td><td>AVG</td></tr>
+      <tr><td>t5yie_avg</td><td>macro_daily</td><td>AVG</td></tr>
+      <tr><td>credit_spread_aa_aaa</td><td>macro_daily</td><td>AVG</td></tr>
+      <tr><td>gov_expend_cum_yoy</td><td>macro_monthly</td><td>原值</td></tr>
+      <tr><td>southbound_net_sum</td><td>market_daily</td><td>SUM</td></tr>
+      <tr><td>iron_ore_dce_avg</td><td>market_daily</td><td>AVG</td></tr>
+      <tr><td>epu_global</td><td>macro_monthly</td><td>原值</td></tr>
+      <tr><td>gpr_threats / gpr_acts</td><td>macro_monthly</td><td>原值</td></tr>
+      <tr><td>term_spread_10y_1y_eom</td><td>derived_daily</td><td>LAST</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══════════════ UPDATE FLOW ══════════════ -->
+<div class="update-flow">
+  <div class="update-title">// ETL 落库流程（每月 16 日 10:00 自动执行）</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:14px;font-family:'JetBrains Mono',monospace">
+    原始文件保存在 <span style="color:var(--lr)">/data/raw/</span>，ETL 脚本直接读取清洗后写库
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num step-s0">1</div>
+      <div class="step-text">读取<br>/data/raw/<br>当月新文件</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s2">2</div>
+      <div class="step-text">ETL 清洗<br>跳垃圾行<br>映射 code</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s2">3</div>
+      <div class="step-text">写入业务表<br>macro_monthly<br><span class="new-text">macro_daily</span><br>market_daily</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s6">3b</div>
+      <div class="step-text"><span class="new-text">计算合成</span><br><span class="new-text">期限利差等</span><br><span class="new-text">→derived_daily</span></div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s3">4</div>
+      <div class="step-text">数据质量<br>校验告警<br>3σ 检测</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s4">5</div>
+      <div class="step-text">存储过程<br>聚合 → 宽表<br>snapshot<br><span class="new-text">~35列</span></div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num step-s5">6</div>
+      <div class="step-text">触发 LLM<br>渲染 Markdown<br>月报推送</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+[database]
+url = "mysql+pymysql://root:password@localhost:3306/robo_advisor?charset=utf8mb4"
+
+[paths]
+raw_data = "data/raw"
+
+[etl]
+# 每月16日 10:00 触发
+cron_expression = "0 10 16 * *"
+
+[quality]
+# 异常值检测阈值（标准差倍数）
+outlier_sigma = 3.0
